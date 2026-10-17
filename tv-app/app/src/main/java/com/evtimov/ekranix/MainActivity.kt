@@ -1,11 +1,13 @@
 package com.evtimov.ekranix
 
 import android.os.Bundle
+import android.view.Gravity
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.View
 import android.view.WindowManager
+import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
@@ -18,6 +20,7 @@ class MainActivity : AppCompatActivity(),
     private var control: ControlServer? = null
     private var video: VideoReceiver? = null
 
+    private lateinit var surfaceView: SurfaceView
     private lateinit var overlay: View
     private lateinit var codeText: TextView
     private lateinit var statusText: TextView
@@ -30,11 +33,12 @@ class MainActivity : AppCompatActivity(),
         setContentView(R.layout.activity_main)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
+        surfaceView = findViewById(R.id.videoSurface)
         overlay = findViewById(R.id.overlay)
         codeText = findViewById(R.id.codeText)
         statusText = findViewById(R.id.statusText)
         findViewById<TextView>(R.id.deviceNameText).text = DeviceIdentity.name(this)
-        findViewById<SurfaceView>(R.id.videoSurface).holder.addCallback(this)
+        surfaceView.holder.addCallback(this)
 
         discovery = DiscoveryResponder(this)
 
@@ -111,5 +115,20 @@ class MainActivity : AppCompatActivity(),
 
     override fun onStreamEnded() {
         overlay.visibility = View.VISIBLE
+    }
+
+    // Вписва картината в екрана с правилни пропорции (черни ленти при нужда)
+    override fun onVideoSize(width: Int, height: Int) {
+        val parent = surfaceView.parent as View
+        val pw = parent.width
+        val ph = parent.height
+        if (pw == 0 || ph == 0 || width <= 0 || height <= 0) return
+
+        val scale = minOf(pw.toFloat() / width, ph.toFloat() / height)
+        surfaceView.layoutParams = FrameLayout.LayoutParams(
+            (width * scale).toInt(),
+            (height * scale).toInt(),
+            Gravity.CENTER
+        )
     }
 }
