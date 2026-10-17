@@ -1,0 +1,22 @@
+# IDE
+.idea/
+.vs/
+.vscode/
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Logs
+*.log
+
+# Ключове за подписване: никога в репото
+*.jks
+*.keystore
+*.pfx
+*.snk
+
+# Локални настройки и тайни
+local.properties
+.env
