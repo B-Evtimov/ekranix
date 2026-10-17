@@ -25,8 +25,8 @@
         <StackPanel x:Name="ConnectedPanel" Visibility="Collapsed" VerticalAlignment="Center">
             <TextBlock x:Name="ConnectedText" FontSize="20" FontWeight="SemiBold"
                        HorizontalAlignment="Center" TextAlignment="Center"/>
-            <TextBlock Text="(предаването на екрана идва в следващата стъпка)" Foreground="Gray"
-                       HorizontalAlignment="Center" Margin="0,6,0,24"/>
+            <TextBlock x:Name="ConnectedInfo" Foreground="Gray"
+                       HorizontalAlignment="Center" TextAlignment="Center" Margin="0,6,0,24"/>
             <Button Content="Прекъсни" Click="Disconnect_Click" Padding="24,8" HorizontalAlignment="Center"/>
         </StackPanel>
 
