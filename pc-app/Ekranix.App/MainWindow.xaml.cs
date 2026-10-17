@@ -7,6 +7,8 @@ namespace Ekranix.App;
 public partial class MainWindow : Window
 {
     private ControlClient? _client;
+    private ScreenStreamer? _streamer;
+    private string? _pendingError;
 
     public MainWindow()
     {
@@ -75,11 +77,43 @@ public partial class MainWindow : Window
             _client.Disconnected += reason => { Dispatcher.InvokeAsync(() => ShowList(reason)); };
             _client.Start();
             ShowConnected(tv);
+            await StartStreamingAsync(tv);
         }
         finally
         {
             ConnectBtn.IsEnabled = true;
             ScanBtn.IsEnabled = true;
+        }
+    }
+
+    private async Task StartStreamingAsync(TvDevice tv)
+    {
+        ConnectedInfo.Text = "Стартирам предаването...";
+        var streamer = new ScreenStreamer();
+        streamer.Failed += reason => { Dispatcher.InvokeAsync(() => OnStreamFailed(reason)); };
+        _streamer = streamer;
+
+        try
+        {
+            await streamer.StartAsync(tv);
+            ConnectedInfo.Text = $"Предаване на основния монитор\nЕнкодер: {streamer.Encoder}";
+        }
+        catch (Exception ex)
+        {
+            OnStreamFailed(ex.Message);
+        }
+    }
+
+    private async void OnStreamFailed(string reason)
+    {
+        if (_client is { } c)
+        {
+            _pendingError = reason;
+            await c.StopAsync();
+        }
+        else
+        {
+            StatusText.Text = reason;
         }
     }
 
@@ -91,6 +125,7 @@ public partial class MainWindow : Window
     private void ShowConnected(TvDevice tv)
     {
         ConnectedText.Text = $"Свързан с {tv.Name}";
+        ConnectedInfo.Text = "";
         CodeBox.Clear();
         ListPanel.Visibility = Visibility.Collapsed;
         ConnectedPanel.Visibility = Visibility.Visible;
@@ -98,15 +133,19 @@ public partial class MainWindow : Window
 
     private void ShowList(string reason)
     {
+        _streamer?.Stop();
+        _streamer = null;
         _client = null;
+
         ConnectedPanel.Visibility = Visibility.Collapsed;
         ListPanel.Visibility = Visibility.Visible;
-        StatusText.Text = reason;
+        StatusText.Text = _pendingError ?? reason;
+        _pendingError = null;
     }
 
     protected override void OnClosed(EventArgs e)
     {
-        // Казваме на телевизора, че си тръгваме, иначе ще чака 3 s heartbeat
+        _streamer?.Stop();
         _client?.StopAsync().Wait(500);
         base.OnClosed(e);
     }
