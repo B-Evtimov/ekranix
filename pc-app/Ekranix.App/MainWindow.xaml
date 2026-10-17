@@ -1,12 +1,11 @@
 ﻿<Window x:Class="Ekranix.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:Ekranix.App"
-        mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
-
-    </Grid>
+        Title="Ekranix" Height="420" Width="520">
+    <StackPanel Margin="20">
+        <TextBlock Text="Телевизори в мрежата" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10"/>
+        <Button x:Name="ScanBtn" Content="Търси" Click="Scan_Click" Padding="10" Margin="0,0,0,10"/>
+        <ListBox x:Name="TvList" Height="250"/>
+        <TextBlock x:Name="StatusText" Margin="0,10,0,0" Foreground="Gray"/>
+    </StackPanel>
 </Window>
