@@ -18,6 +18,7 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.security.MessageDigest
 import java.security.SecureRandom
+import java.net.InetAddress
 
 class ControlServer(
     private val scope: CoroutineScope,
@@ -43,6 +44,10 @@ class ControlServer(
     @Volatile private var session: Session? = null
     @Volatile private var code = ""
     @Volatile private var failedAttempts = 0
+
+    @Volatile var pairedAddress: InetAddress? = null
+        private set
+
 
     fun start() {
         newCode()
@@ -128,6 +133,7 @@ class ControlServer(
         if (MessageDigest.isEqual(given, code.toByteArray())) {
             failedAttempts = 0
             s.paired = true
+            pairedAddress = s.address
             s.pcName = msg.optString("pcName", "Компютър")
             s.send(JSONObject().put("type", "pair_ok").put("name", tvName))
             scope.launch(Dispatchers.Main) { listener.onPaired(s.pcName) }
@@ -144,6 +150,7 @@ class ControlServer(
         s.close()
         if (session === s) session = null
         if (s.paired) {
+            pairedAddress = null
             newCode()
             scope.launch(Dispatchers.Main) { listener.onDisconnected(reason) }
         }
@@ -164,6 +171,7 @@ class ControlServer(
         @Volatile var paired = false
         @Volatile var closed = false
         var pcName = ""
+        val address: InetAddress = socket.inetAddress
 
         init {
             socket.tcpNoDelay = true

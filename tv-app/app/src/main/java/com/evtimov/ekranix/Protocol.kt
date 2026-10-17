@@ -6,4 +6,7 @@ object Protocol {
     const val VIDEO_PORT = 47002
     const val AUDIO_PORT = 47003
     const val DISCOVER_MAGIC = "EKRANIX_DISCOVER_V1"
+
+    const val VIDEO_FLAG_CONFIG = 1
+    const val VIDEO_FLAG_KEY = 2
 }
