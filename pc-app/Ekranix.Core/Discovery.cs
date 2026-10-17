@@ -16,47 +16,68 @@ public static class Discovery
     public static async Task<List<TvDevice>> ScanAsync(TimeSpan timeout, CancellationToken ct = default)
     {
         using var udp = new UdpClient(0) { EnableBroadcast = true };
-        var payload = Encoding.UTF8.GetBytes(Protocol.DiscoverMagic);
 
-        // Пращаме 2 пъти, защото UDP може да изгуби пакет
+        // Windows: без това едно ICMP "port unreachable" (от VPN/виртуален адаптер)
+        // кара следващото четене да хвърли SocketException 10054 и всичко пада.
+        if (OperatingSystem.IsWindows())
+        {
+            const int SIO_UDP_CONNRESET = -1744830452;
+            udp.Client.IOControl(SIO_UDP_CONNRESET, new byte[] { 0 }, null);
+        }
+
+        var payload = Encoding.UTF8.GetBytes(Protocol.DiscoverMagic);
+        var targets = BroadcastAddresses().Distinct().ToList();
+
+        // Пращаме 2 пъти, защото UDP може да изгуби пакет.
+        // Някой адаптер да откаже не е проблем, продължаваме с останалите.
         for (int i = 0; i < 2; i++)
-            foreach (var addr in BroadcastAddresses())
-                await udp.SendAsync(payload, new IPEndPoint(addr, Protocol.DiscoveryPort), ct);
+        {
+            foreach (var addr in targets)
+            {
+                try
+                {
+                    await udp.SendAsync(payload, new IPEndPoint(addr, Protocol.DiscoveryPort), ct);
+                }
+                catch (SocketException) { }
+            }
+        }
 
         var found = new Dictionary<string, TvDevice>();
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(timeout);
 
-        try
+        while (!cts.IsCancellationRequested)
         {
-            while (true)
+            UdpReceiveResult res;
+            try
             {
-                var res = await udp.ReceiveAsync(cts.Token);
-                try
-                {
-                    var j = JsonDocument.Parse(res.Buffer).RootElement;
-                    if (j.GetProperty("type").GetString() != "here") continue;
+                res = await udp.ReceiveAsync(cts.Token);
+            }
+            catch (OperationCanceledException) { break; }
+            catch (SocketException) { continue; } // шум от мрежата: игнорираме
 
-                    var id = j.GetProperty("id").GetString()!;
-                    found[id] = new TvDevice(
-                        id,
-                        j.GetProperty("name").GetString()!,
-                        res.RemoteEndPoint.Address,
-                        j.GetProperty("controlPort").GetInt32());
-                }
-                catch (Exception ex) when (ex is JsonException or KeyNotFoundException)
-                {
-                    // чужд или повреден пакет: игнорираме
-                }
+            try
+            {
+                var j = JsonDocument.Parse(res.Buffer).RootElement;
+                if (j.GetProperty("type").GetString() != "here") continue;
+
+                var id = j.GetProperty("id").GetString()!;
+                found[id] = new TvDevice(
+                    id,
+                    j.GetProperty("name").GetString()!,
+                    res.RemoteEndPoint.Address,
+                    j.GetProperty("controlPort").GetInt32());
+            }
+            catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException)
+            {
+                // чужд или повреден пакет: игнорираме
             }
         }
-        catch (OperationCanceledException) { }
 
         return found.Values.ToList();
     }
 
     // Broadcast адрес за всяка активна мрежова карта.
-    // Само 255.255.255.255 не стига, защото Windows понякога го праща само през една карта.
     private static IEnumerable<IPAddress> BroadcastAddresses()
     {
         yield return IPAddress.Broadcast;
@@ -64,7 +85,8 @@ public static class Discovery
         foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
         {
             if (ni.OperationalStatus != OperationalStatus.Up ||
-                ni.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
+                ni.NetworkInterfaceType == NetworkInterfaceType.Loopback ||
+                ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel) continue;
 
             foreach (var ua in ni.GetIPProperties().UnicastAddresses)
             {
@@ -72,6 +94,10 @@ public static class Discovery
 
                 var ip = ua.Address.GetAddressBytes();
                 var mask = ua.IPv4Mask.GetAddressBytes();
+
+                // Маска 255.255.255.255 (VPN и подобни): broadcast-ът е самото IP, пропускаме
+                if (mask.All(b => b == 255)) continue;
+
                 var b = new byte[4];
                 for (int i = 0; i < 4; i++) b[i] = (byte)(ip[i] | ~mask[i]);
                 yield return new IPAddress(b);
