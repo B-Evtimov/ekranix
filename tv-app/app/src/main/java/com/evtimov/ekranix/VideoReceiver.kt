@@ -25,6 +25,8 @@ class VideoReceiver(
     interface Listener {
         fun onStreamStarted()
         fun onStreamEnded()
+
+        fun onVideoSize(width: Int, height: Int)
     }
 
     @Volatile var surface: Surface? = null
@@ -148,12 +150,28 @@ class VideoReceiver(
         try {
             while (streaming) {
                 val idx = codec.dequeueOutputBuffer(info, 10_000)
-                if (idx >= 0) codec.releaseOutputBuffer(idx, true)
+                when {
+                    idx >= 0 -> codec.releaseOutputBuffer(idx, true)
+                    idx == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> reportSize(codec.outputFormat)
+                }
             }
         } catch (e: IllegalStateException) { }
     }, "ekranix-decoder-out").apply {
         priority = Thread.MAX_PRIORITY
         start()
+    }
+
+    // Реалният размер на картината (crop-а маха допълнителните редове, които H.264 добавя)
+    private fun reportSize(f: MediaFormat) {
+        val w = if (f.containsKey("crop-right") && f.containsKey("crop-left"))
+            f.getInteger("crop-right") - f.getInteger("crop-left") + 1
+        else f.getInteger(MediaFormat.KEY_WIDTH)
+
+        val h = if (f.containsKey("crop-bottom") && f.containsKey("crop-top"))
+            f.getInteger("crop-bottom") - f.getInteger("crop-top") + 1
+        else f.getInteger(MediaFormat.KEY_HEIGHT)
+
+        scope.launch(Dispatchers.Main) { listener.onVideoSize(w, h) }
     }
 
     private fun waitForSurface(): Surface? {

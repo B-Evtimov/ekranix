@@ -20,7 +20,7 @@ public sealed class ScreenStreamer
     /// <summary>Вика се при неочакван край (ffmpeg гръмна, мрежата падна). От фонова нишка.</summary>
     public event Action<string>? Failed;
 
-    public async Task StartAsync(TvDevice tv, int monitorIndex = 0, int fps = 60, int bitrateMbps = 20)
+    public async Task StartAsync(TvDevice tv, StreamOptions options)
     {
         try
         {
@@ -32,7 +32,7 @@ public sealed class ScreenStreamer
             _tcp = new TcpClient { NoDelay = true, SendBufferSize = 256 * 1024 };
             await ConnectWithRetryAsync(_tcp, tv);
 
-            var psi = new ProcessStartInfo(ffmpeg, Ffmpeg.BuildArgs(Encoder, monitorIndex, fps, bitrateMbps))
+            var psi = new ProcessStartInfo(ffmpeg, Ffmpeg.BuildArgs(Encoder, options))
             {
                 UseShellExecute = false,
                 CreateNoWindow = true,

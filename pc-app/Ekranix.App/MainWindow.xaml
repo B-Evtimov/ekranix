@@ -1,34 +1,285 @@
-﻿<Window x:Class="Ekranix.App.MainWindow"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Ekranix" Height="480" Width="520">
-    <Grid Margin="20">
+﻿<ui:FluentWindow x:Class="Ekranix.App.MainWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 xmlns:core="clr-namespace:Ekranix.Core;assembly=Ekranix.Core"
+                 Title="Ekranix"
+                 Width="560" Height="720" MinWidth="480" MinHeight="620"
+                 WindowStartupLocation="CenterScreen"
+                 ExtendsContentIntoTitleBar="True"
+                 WindowBackdropType="Mica"
+                 WindowCornerPreference="Round"
+                 Loaded="Window_Loaded">
 
-        <!-- Списък с телевизори + код -->
-        <StackPanel x:Name="ListPanel">
-            <TextBlock Text="Телевизори в мрежата" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10"/>
-            <Button x:Name="ScanBtn" Content="Търси" Click="Scan_Click" Padding="10" Margin="0,0,0,10"/>
-            <ListBox x:Name="TvList" Height="200"/>
+    <ui:FluentWindow.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <Style x:Key="Caption" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        </Style>
+        <Style x:Key="Secondary" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+    </ui:FluentWindow.Resources>
 
-            <TextBlock Text="Код от телевизора:" Margin="0,14,0,4"/>
-            <DockPanel>
-                <Button x:Name="ConnectBtn" DockPanel.Dock="Right" Content="Свържи"
-                        Click="Connect_Click" Padding="18,6" Margin="8,0,0,0"/>
-                <TextBox x:Name="CodeBox" MaxLength="7" FontSize="22" FontFamily="Consolas"
-                         VerticalContentAlignment="Center" KeyDown="CodeBox_KeyDown"/>
-            </DockPanel>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
 
-            <TextBlock x:Name="StatusText" Margin="0,10,0,0" Foreground="Gray" TextWrapping="Wrap"/>
-        </StackPanel>
+        <ui:TitleBar Grid.Row="0" Title="Ekranix" />
 
-        <!-- Свързан -->
-        <StackPanel x:Name="ConnectedPanel" Visibility="Collapsed" VerticalAlignment="Center">
-            <TextBlock x:Name="ConnectedText" FontSize="20" FontWeight="SemiBold"
-                       HorizontalAlignment="Center" TextAlignment="Center"/>
-            <TextBlock x:Name="ConnectedInfo" Foreground="Gray"
-                       HorizontalAlignment="Center" TextAlignment="Center" Margin="0,6,0,24"/>
-            <Button Content="Прекъсни" Click="Disconnect_Click" Padding="24,8" HorizontalAlignment="Center"/>
-        </StackPanel>
+        <Grid Grid.Row="1" Margin="28,8,28,28">
 
+            <!-- ═════════════ 1. НАЧАЛО ═════════════ -->
+            <Grid x:Name="HomePage">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0">
+                    <TextBlock Text="Сподели екрана си" FontSize="28" FontWeight="SemiBold" />
+                    <TextBlock Text="Избери телевизор в същата Wi-Fi мрежа" Margin="0,4,0,0"
+                               Style="{StaticResource Secondary}" />
+                </StackPanel>
+
+                <DockPanel Grid.Row="1" Margin="0,28,0,8">
+                    <ui:Button x:Name="RefreshBtn" DockPanel.Dock="Right" Appearance="Transparent"
+                               Icon="{ui:SymbolIcon ArrowClockwise24}" ToolTip="Търси отново"
+                               Click="Refresh_Click" />
+                    <TextBlock Text="ТЕЛЕВИЗОРИ" Style="{StaticResource Caption}" VerticalAlignment="Center" />
+                </DockPanel>
+
+                <Grid Grid.Row="2">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <ItemsControl x:Name="TvItems">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type core:TvDevice}">
+                                    <ui:CardAction Margin="0,0,0,8" Icon="{ui:SymbolIcon Tv24}" Click="TvCard_Click">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding Address}" FontSize="12" Margin="0,2,0,0"
+                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                        </StackPanel>
+                                    </ui:CardAction>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <StackPanel x:Name="ScanningState" VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <ui:ProgressRing IsIndeterminate="True" Width="44" Height="44" />
+                        <TextBlock Text="Търся телевизори..." Margin="0,16,0,0" HorizontalAlignment="Center"
+                                   Style="{StaticResource Secondary}" />
+                    </StackPanel>
+
+                    <StackPanel x:Name="EmptyState" Visibility="Collapsed"
+                                VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <ui:SymbolIcon Symbol="Tv24" FontSize="56" HorizontalAlignment="Center"
+                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                        <TextBlock Text="Няма открити телевизори" FontSize="16" FontWeight="SemiBold"
+                                   Margin="0,14,0,0" HorizontalAlignment="Center" />
+                        <TextBlock Text="Отвори Ekranix на телевизора и провери, че е в същата мрежа."
+                                   MaxWidth="300" TextAlignment="Center" Margin="0,6,0,0"
+                                   Style="{StaticResource Secondary}" />
+                        <ui:Button Content="Търси отново" Icon="{ui:SymbolIcon ArrowClockwise24}"
+                                   Margin="0,20,0,0" HorizontalAlignment="Center" Click="Refresh_Click" />
+                    </StackPanel>
+                </Grid>
+
+                <ui:InfoBar x:Name="HomeInfo" Grid.Row="3" Margin="0,12,0,0" IsClosable="True" />
+            </Grid>
+
+            <!-- ═════════════ 2. КОД ═════════════ -->
+            <Grid x:Name="PairPage" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <ui:Button Grid.Row="0" Content="Назад" Appearance="Transparent"
+                           Icon="{ui:SymbolIcon ArrowLeft24}" HorizontalAlignment="Left" Click="Back_Click" />
+
+                <StackPanel Grid.Row="1" Width="360" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <Border Width="76" Height="76" CornerRadius="38" HorizontalAlignment="Center"
+                            Background="{DynamicResource AccentFillColorDefaultBrush}">
+                        <ui:SymbolIcon Symbol="Tv24" FontSize="34"
+                                       Foreground="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                    </Border>
+
+                    <TextBlock x:Name="PairTvName" FontSize="22" FontWeight="SemiBold"
+                               HorizontalAlignment="Center" Margin="0,18,0,0" />
+                    <TextBlock Text="Въведи 6-цифрения код от екрана на телевизора"
+                               TextAlignment="Center" Margin="0,6,0,0" Style="{StaticResource Secondary}" />
+
+                    <TextBox x:Name="CodeBox" Margin="0,28,0,0" MaxLength="7"
+                             FontSize="40" FontFamily="Consolas" TextAlignment="Center"
+                             PreviewTextInput="CodeBox_PreviewTextInput"
+                             TextChanged="CodeBox_TextChanged" KeyDown="CodeBox_KeyDown" />
+
+                    <ui:Button x:Name="PairBtn" Content="Свържи" Appearance="Primary" Height="44"
+                               HorizontalAlignment="Stretch" Margin="0,16,0,0"
+                               IsEnabled="False" Click="Pair_Click" />
+
+                    <ui:ProgressRing x:Name="PairProgress" IsIndeterminate="True" Width="26" Height="26"
+                                     Margin="0,18,0,0" Visibility="Collapsed" />
+
+                    <ui:InfoBar x:Name="PairInfo" Margin="0,16,0,0" Severity="Error" IsClosable="False" />
+                </StackPanel>
+            </Grid>
+
+            <!-- ═════════════ 3. НАСТРОЙКИ ═════════════ -->
+            <Grid x:Name="SetupPage" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0">
+                    <TextBlock Text="Настройки на предаването" FontSize="26" FontWeight="SemiBold" />
+                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                        <Ellipse Width="8" Height="8" Fill="#FF3FB950" VerticalAlignment="Center" />
+                        <TextBlock x:Name="SetupSubtitle" Margin="8,0,0,0" Style="{StaticResource Secondary}" />
+                    </StackPanel>
+                </StackPanel>
+
+                <ScrollViewer Grid.Row="1" Margin="0,24,0,0" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="КАКВО ДА СЕ ПОКАЗВА" Style="{StaticResource Caption}" />
+
+                        <ListBox x:Name="MonitorList" Margin="0,8,0,0" Background="Transparent" BorderThickness="0">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate DataType="{x:Type core:MonitorInfo}">
+                                    <Grid Margin="4,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <ui:SymbolIcon Symbol="Desktop24" FontSize="26" VerticalAlignment="Center" />
+                                        <StackPanel Grid.Column="1" Margin="14,0,0,0">
+                                            <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding Resolution}" FontSize="12"
+                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                            <TextBlock Text="Ще се смали до 1080p за телевизора" FontSize="12"
+                                                       Foreground="{DynamicResource SystemFillColorCautionBrush}"
+                                                       Visibility="{Binding NeedsScaling, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <StackPanel x:Name="MonitorLoading" Orientation="Horizontal" Margin="4,12,0,0">
+                            <ui:ProgressRing IsIndeterminate="True" Width="18" Height="18" />
+                            <TextBlock Text="Откривам мониторите..." Margin="10,0,0,0" VerticalAlignment="Center"
+                                       Style="{StaticResource Secondary}" />
+                        </StackPanel>
+
+                        <TextBlock Text="КАЧЕСТВО" Margin="0,24,0,0" Style="{StaticResource Caption}" />
+
+                        <ui:Card Margin="0,8,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Качество на картината" FontWeight="SemiBold" />
+                                    <TextBlock x:Name="QualityHint" FontSize="12" Margin="0,2,0,0"
+                                               Style="{StaticResource Secondary}" />
+                                </StackPanel>
+                                <ComboBox x:Name="QualityBox" Grid.Column="1" Width="170" Margin="12,0,0,0"
+                                          SelectionChanged="QualityBox_SelectionChanged" />
+                            </Grid>
+                        </ui:Card>
+
+                        <ui:Card Margin="0,8,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Показвай курсора" FontWeight="SemiBold" />
+                                    <TextBlock Text="Мишката се вижда на телевизора" FontSize="12" Margin="0,2,0,0"
+                                               Style="{StaticResource Secondary}" />
+                                </StackPanel>
+                                <ui:ToggleSwitch x:Name="CursorToggle" Grid.Column="1" IsChecked="True" />
+                            </Grid>
+                        </ui:Card>
+
+                        <ui:InfoBar x:Name="SetupInfo" Margin="0,12,0,0" Severity="Error" IsClosable="True" />
+                    </StackPanel>
+                </ScrollViewer>
+
+                <Grid Grid.Row="2" Margin="0,20,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="2*" />
+                    </Grid.ColumnDefinitions>
+                    <ui:Button Grid.Column="0" Content="Прекъсни" Height="44" HorizontalAlignment="Stretch"
+                               Click="Disconnect_Click" />
+                    <ui:Button x:Name="StartBtn" Grid.Column="2" Content="Започни предаване" Appearance="Primary"
+                               Icon="{ui:SymbolIcon Play24}" Height="44" HorizontalAlignment="Stretch"
+                               IsEnabled="False" Click="Start_Click" />
+                </Grid>
+            </Grid>
+
+            <!-- ═════════════ 4. НА ЖИВО ═════════════ -->
+            <Grid x:Name="LivePage" Visibility="Collapsed">
+                <StackPanel Width="380" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <Border HorizontalAlignment="Center" CornerRadius="12" Padding="12,5" Background="#33E81123">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse x:Name="LiveDot" Width="8" Height="8" Fill="#FFE81123" VerticalAlignment="Center" />
+                            <TextBlock x:Name="LiveBadge" Text="СТАРТИРАНЕ" Margin="8,0,0,0" FontSize="12"
+                                       FontWeight="SemiBold" Foreground="#FFFF6B7A" />
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock x:Name="LiveTvName" FontSize="24" FontWeight="SemiBold"
+                               HorizontalAlignment="Center" Margin="0,20,0,0" />
+                    <TextBlock x:Name="LiveTimer" Text="--:--" FontSize="56" FontWeight="Light"
+                               HorizontalAlignment="Center" Margin="0,4,0,0" />
+
+                    <ui:Card Margin="0,24,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="Екран" Style="{StaticResource Secondary}" />
+                            <TextBlock Grid.Row="0" Grid.Column="1" x:Name="LiveMonitor" TextAlignment="Right" />
+
+                            <TextBlock Grid.Row="1" Text="Качество" Margin="0,10,0,0" Style="{StaticResource Secondary}" />
+                            <TextBlock Grid.Row="1" Grid.Column="1" x:Name="LiveQuality" Margin="0,10,0,0" TextAlignment="Right" />
+
+                            <TextBlock Grid.Row="2" Text="Кодиране" Margin="0,10,0,0" Style="{StaticResource Secondary}" />
+                            <TextBlock Grid.Row="2" Grid.Column="1" x:Name="LiveEncoder" Margin="0,10,0,0" TextAlignment="Right" />
+                        </Grid>
+                    </ui:Card>
+
+                    <ui:Button Content="Спри предаването" Appearance="Danger" Icon="{ui:SymbolIcon Stop24}"
+                               Height="44" HorizontalAlignment="Stretch" Margin="0,24,0,0"
+                               Click="Disconnect_Click" />
+                    <TextBlock Text="Можеш да спреш и с НАЗАД от дистанционното" FontSize="12"
+                               HorizontalAlignment="Center" Margin="0,12,0,0" Style="{StaticResource Secondary}" />
+                </StackPanel>
+            </Grid>
+
+        </Grid>
     </Grid>
-</Window>
+</ui:FluentWindow>
