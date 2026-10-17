@@ -1,20 +1,27 @@
 package com.evtimov.ekranix
 
 import android.os.Bundle
-import androidx.activity.enableEdgeToEdge
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.lifecycleScope
 
 class MainActivity : AppCompatActivity() {
+    private lateinit var discovery: DiscoveryResponder
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         setContentView(R.layout.activity_main)
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
+        findViewById<TextView>(R.id.deviceNameText).text = DeviceIdentity.name(this)
+        discovery = DiscoveryResponder(this)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        discovery.start(lifecycleScope)
+    }
+
+    override fun onStop() {
+        discovery.stop()
+        super.onStop()
     }
 }
