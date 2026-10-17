@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Ekranix.App/Ekranix.App.csproj" />
+  <Project Path="Ekranix.Core/Ekranix.Core.csproj" />
+</Solution>
