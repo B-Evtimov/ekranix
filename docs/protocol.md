@@ -7,8 +7,20 @@
 | 47002 | TCP | Видео: [4 байта дължина big-endian][H.264 NAL блок] |
 | 47003 | TCP | Звук: PCM s16le, 48000 Hz, stereo |
 
-## Откриване
+## Откриване (UDP 47000)
+PC → broadcast: `EKRANIX_DISCOVER_V1`
+TV → PC: `{"type":"here","id":"<uuid>","name":"<име>","controlPort":47001}`
 
-PC праща broadcast `EKRANIX_DISCOVER_V1` на UDP 47000.
-TV отговаря директно на подателя:
-{"type":"here","id":"<uuid>","name":"<име на TV>","controlPort":47001}
+## Управление (TCP 47001)
+Сдвояване:
+- PC → TV: `{"type":"pair","code":"123456","pcName":"BORIS-PC"}`
+- TV → PC: `{"type":"pair_ok","name":"<име на TV>"}`
+- TV → PC: `{"type":"pair_fail","attemptsLeft":4}` и затваря връзката
+- TV → PC: `{"type":"busy"}` ако вече има свързан компютър
+
+Ако няма `pair` до 5 s след свързване, TV затваря връзката.
+След 5 грешни опита TV генерира нов код.
+
+След сдвояване:
+- И двете страни: `{"type":"ping"}` всяка 1 s. Ако 3 s няма нищо, връзката е мъртва.
+- Всяка страна: `{"type":"stop"}`, край на сесията. TV генерира нов код.
